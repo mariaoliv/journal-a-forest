@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-earth-50 text-forest-900 antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    letter-spacing: -0.01em;
+  }
+  
+  h1 {
+    @apply font-light text-forest-900 tracking-tight;
+    letter-spacing: -0.02em;
+  }
+  
+  h2 {
+    @apply font-light text-forest-900 tracking-tight;
+    letter-spacing: -0.015em;
+  }
+  
+  h3, h4, h5, h6 {
+    @apply font-normal text-forest-900;
+  }
+  
+  p {
+    @apply leading-relaxed;
+  }
+}
+
+@layer utilities {
+  .gradient-earth {
+    /* Subtle morning light: radial gradient with two close sage tones */
+    /* #FAFBF9 → #EDF2EE - extremely subtle contrast */
+    background-color: #EDF2EE;
+    background-image: radial-gradient(ellipse 180% 150% at 50% -5%, #FAFBF9 0%, #EDF2EE 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+  
+  .gradient-forest {
+    background: linear-gradient(135deg, #3d8f70 0%, #2d735a 100%);
+  }
+  
+  .gradient-warm {
+    background: linear-gradient(135deg, #fdf9f2 0%, #faf2e0 100%);
+  }
+  
+  .card-hover {
+    @apply transition-all duration-500 ease-out;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px) scale(1.02);
+    @apply shadow-xl;
+  }
+  
+  .whimsical-leaf {
+    position: relative;
+  }
+  
+  .whimsical-leaf::before {
+    content: '🍃';
+    position: absolute;
+    opacity: 0;
+    transition: all 0.4s ease;
+    font-size: 0.875rem;
+    top: -0.25rem;
+    right: -0.25rem;
+    transform: rotate(-15deg);
+  }
+  
+  .whimsical-leaf:hover::before {
+    opacity: 0.7;
+    transform: rotate(5deg) scale(1.2);
+  }
+}
+
