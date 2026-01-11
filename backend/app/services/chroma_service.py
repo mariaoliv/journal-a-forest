@@ -81,7 +81,13 @@ class ChromaService:
                 results = self.collection.query(
                     query_embeddings=[query_embedding],
                     n_results=limit,
-                    where={"session_id" : session_id, "entry_id": {"$nin": exclude_entry_ids}}
+                    where={
+                        "$and" : [
+                            {"session_id": session_id},
+                            {"entry_id": {"$nin": exclude_entry_ids}}
+                        ]
+                    }
+                   
                 )
             return results["documents"][0] if results["documents"] else []
         except Exception as e:
@@ -107,7 +113,7 @@ class ChromaService:
         """
         try:
             response = self.mistral_client.embeddings.create(
-                model="mistral_embed",
+                model="mistral-embed",
                 inputs=text
             )
             return response.data[0].embedding
