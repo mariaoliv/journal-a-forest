@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Optional
 import chromadb
+import json
 from chromadb.config import Settings
 from mistralai import Mistral
 
@@ -51,12 +52,16 @@ class ChromaService:
         try:
             metadata["session_id"] = session_id
 
+            for k, v in metadata.items():
+                if type(v) == list or type(v) == dict:
+                    metadata[k] = json.dumps(v)
+
             embedding = self._generate_embedding(text)
             self.collection.add(
                 ids=[f"{session_id}_{entry_id}"],
                 embeddings=[embedding],
                 documents=text,
-                metadata=metadata
+                metadatas=metadata
             )
         except Exception as e:
             print(f"Could not store entry in ChromaDB: {e}")

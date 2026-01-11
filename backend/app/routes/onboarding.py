@@ -43,6 +43,47 @@ async def submit_onboarding(
         }
         for p in analysis["starter_prompts"]
     ]
+
+    now = datetime.now().isoformat()
+
+    async with db.execute(
+        """
+        SELECT COUNT(*) FROM prompts
+        WHERE session_id = ? AND source = ?
+        """,
+        (request.session_id, "onboarding")
+    ) as cursor:
+        num_onboarding_prompts = (await cursor.fetchone())[0]
+
+    if num_onboarding_prompts == 0:
+        await db.execute(
+            """
+            INSERT INTO prompts (
+                session_id, created_at, source, prompts_json
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                request.session_id,
+                now,
+                "onboarding",
+                json.dumps(starter_prompts)
+            )
+        )
+    else:
+        await db.execute(
+            """
+            UPDATE prompts
+            SET prompts_json = ?, created_at = ?
+            WHERE session_id = ? AND source = ?
+            """,
+            (
+                json.dumps(starter_prompts),
+                now,
+                request.session_id,
+                "onboarding"
+            )
+        )
     
     # Convert threads to response format (empty for now)
     active_threads = []  # Could extract from brain_dump analysis

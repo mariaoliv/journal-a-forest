@@ -280,7 +280,11 @@ The final output should feel **personal, gentle, and reflective**, never directi
         ],
         response_format=Prompts
     )
+    print("=====History====")
+    print(session_history)
+    print("=====Generate prompts responsr===========")
     response = chat_response.choices[0].message.parsed
+    print(response)
     prompts = [p.model_dump() for p in response.prompts]
     return prompts
 

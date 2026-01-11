@@ -60,6 +60,15 @@ CREATE TABLE IF NOT EXISTS streak_days (
     PRIMARY KEY (session_id, day),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS prompts (
+    session_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    prompts_json TEXT NOT NULL,
+    PRIMARY KEY (session_id, source),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
 """
 
 async def get_db():
@@ -68,6 +77,10 @@ async def get_db():
     db.row_factory = aiosqlite.Row
     try:
         yield db
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise
     finally:
         await db.close()
 

@@ -142,7 +142,8 @@ async def create_entry(
         WHERE session_id = ?
         ORDER BY created_at DESC
         LIMIT 3
-        """
+        """,
+        (request.session_id,)
     ) as cursor:
         recent_entries = await cursor.fetchall()
 
@@ -154,7 +155,7 @@ async def create_entry(
         ORDER BY updated_at DESC
         LIMIT 3
         """,
-        (session,)
+        (request.session_id,)
     ) as cursor:
         thread_rows = await cursor.fetchall()
     
@@ -174,7 +175,7 @@ async def create_entry(
     recent_summaries = [res[0] for res in recent_entries]
     recent_entry_ids = [res[1] for res in recent_entries]
 
-    similarity_search_results = chroma_db.search_similar(query=summary, session_id=session, exclude_entry_ids=recent_entry_ids, limit=5)
+    similarity_search_results = chroma_db.search_similar(query=summary, session_id=request.session_id, exclude_entry_ids=recent_entry_ids, limit=5)
 
     session_history = {
         "recent_memories": recent_summaries,
@@ -194,6 +195,46 @@ async def create_entry(
         }
         for p in new_prompts_data[:3]  # Return 1-3 prompts
     ]
+
+    async with db.execute(
+        """
+        SELECT COUNT(*) FROM prompts
+        WHERE session_id = ? AND source = ?
+        """,
+        (request.session_id, "generated")
+    ) as cursor:
+        num_generated_prompts = (await cursor.fetchone())[0]
+
+    if num_generated_prompts == 0:
+        await db.execute(
+            """
+            INSERT INTO prompts (
+                session_id, created_at, source, prompts_json
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                request.session_id,
+                now,
+                "generated",
+                json.dumps(new_prompts)
+            )
+        )
+    else:
+         await db.execute(
+            """
+            UPDATE prompts
+            SET prompts_json = ?, created_at = ?
+            WHERE session_id = ? AND source = ?
+            """,
+            (
+                json.dumps(new_prompts),
+                now,
+                request.session_id,
+                "generated"
+            )
+        )
+
     
     return EntryResponse(
         entry_id=entry_id,

@@ -4,6 +4,7 @@ from app.services.llm_service import generate_prompts
 from app.services.chroma_service import ChromaService
 from app.db.database import get_db
 import aiosqlite
+import json
 from typing import Optional
 
 router = APIRouter()
@@ -24,19 +25,42 @@ async def get_today_prompts(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
     
-    # Get recent entries for context (for prompt generation)
     async with db.execute(
         """
-        SELECT memory_summary, entry_id
-        FROM entry_analysis ea
-        JOIN journal_entries je ON ea.entry_id = je.id
+        SELECT COUNT(id) FROM journal_entries
         WHERE session_id = ?
-        ORDER BY created_at DESC
-        LIMIT 3
         """,
         (session_id,)
     ) as cursor:
-        recent_entries = await cursor.fetchall()
+        num_entries = (await cursor.fetchone())[0]
+
+    async with db.execute(
+        """
+        SELECT COUNT(*) FROM prompts
+        WHERE session_id = ? AND source = ?
+        """,
+        (session_id, "generated")
+    ) as cursor:
+        num_generated_prompts = (await cursor.fetchone())[0]
+
+    if num_entries == 0 or num_generated_prompts == 0:
+        #use starter prompts
+        async with db.execute(
+        """
+        SELECT prompts_json FROM prompts
+        WHERE source = ? AND session_id = ?
+        """, 
+        ("onboarding", session_id)
+        ) as cursor:
+            prompts = (await cursor.fetchone())[0]
+            prompts_json = json.loads(prompts)
+
+        return TodayPromptsResponse(
+        prompts=prompts_json,
+        active_threads=[],
+        )   
+
+    
 
     # Get active threads
     async with db.execute(
@@ -63,35 +87,20 @@ async def get_today_prompts(
         for row in thread_rows
     ]
 
-    summary = recent_entries[0][0]
-    recent_summaries = [res[0] for res in recent_entries]
-    recent_entry_ids = [res[1] for res in recent_entries]
-    #query ChromaDB to get most similar entries to form session history
-    similarity_search_results = chroma_db.search_similar(query=summary, session_id=session_id, exclude_entry_ids=recent_entry_ids, limit=5)
-
-    session_history = {
-        "recent_memories": recent_summaries,
-        "relevant_memories": similarity_search_results,
-        "active_threads": active_threads
-    }
-
-    #session_history = [{"summary": row[0]} for row in recent_entries]
-    
-    # Generate prompts (mock for now)
-    prompt_data = generate_prompts("", session_history)
-    
-    prompts = [
-        {
-            "id": p["id"],
-            "text": p["text"],
-            "category": p.get("category"),
-        }
-        for p in prompt_data
-    ]
+   # Get prompts
+    async with db.execute(
+    """
+    SELECT prompts_json FROM prompts
+    WHERE source = ? AND session_id = ?
+    """, 
+    ("generated", session_id)
+    ) as cursor:
+        prompts = (await cursor.fetchone())[0]
+        prompts_json = json.loads(prompts)
     
     
     return TodayPromptsResponse(
-        prompts=prompts,
+        prompts=prompts_json,
         active_threads=active_threads,
     )
 
