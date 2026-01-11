@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.entries import EntryRequest, EntryResponse
 from app.services.llm_service import analyze_entry, generate_prompts
+from app.services.chroma_service import ChromaService
 from app.services.tree_service import generate_tree
 from app.services.chroma_service import chroma_service
 from app.db.database import get_db
@@ -9,6 +10,7 @@ import json
 from datetime import datetime, date
 
 router = APIRouter()
+chroma_db = ChromaService()
 
 @router.post("/entries", response_model=EntryResponse)
 async def create_entry(
@@ -25,7 +27,7 @@ async def create_entry(
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
     
-    now = datetime.utcnow().isoformat()
+    now = datetime.now().isoformat()
     
     # Insert journal entry
     result = await db.execute(
@@ -115,20 +117,75 @@ async def create_entry(
     
     await db.commit()
     
-    # Store in Chroma (stubbed)
+    # Store in Chroma 
     chroma_service.store_entry(
         entry_id,
         request.session_id,
-        request.text,
+        analysis["memory_summary"],
         metadata={
             "themes": analysis["themes"],
             "emotions": analysis["emotions"],
+            "unresolved": analysis["unresolved"],
+            "follow_up_question": analysis["follow_up_question"],
+            "patterns_reflection": analysis["patterns_reflection"],
             "created_at": now,
+            "entry_id": entry_id
         }
     )
     
-    # Generate new prompts (mock)
-    new_prompts_data = generate_prompts(request.text)
+    # Get session history (for prompt generation)
+    async with db.execute(
+        """
+        SELECT memory_summary, entry_id
+        FROM entry_analysis ea
+        JOIN journal_entries je ON ea.entry_id = je.id
+        WHERE session_id = ?
+        ORDER BY created_at DESC
+        LIMIT 3
+        """
+    ) as cursor:
+        recent_entries = await cursor.fetchall()
+
+    async with db.execute(
+        """
+        SELECT id, thread, status, created_at, updated_at, last_seen_entry_id
+        FROM threads
+        WHERE session_id = ? AND status = 'active'
+        ORDER BY updated_at DESC
+        LIMIT 3
+        """,
+        (session,)
+    ) as cursor:
+        thread_rows = await cursor.fetchall()
+    
+    active_threads = [
+        {
+            "id": row[0],
+            "thread": row[1],
+            "status": row[2],
+            "created_at": row[3],
+            "updated_at": row[4],
+            "last_seen_entry_id": row[5],
+        }
+        for row in thread_rows
+    ]
+
+    summary = recent_entries[0][0]
+    recent_summaries = [res[0] for res in recent_entries]
+    recent_entry_ids = [res[1] for res in recent_entries]
+
+    similarity_search_results = chroma_db.search_similar(query=summary, session_id=session, exclude_entry_ids=recent_entry_ids, limit=5)
+
+    session_history = {
+        "recent_memories": recent_summaries,
+        "relevant_memories": similarity_search_results,
+        "active_threads": active_threads
+    }
+
+    # Generate new prompts 
+
+    text = f'{analysis["memory_summary"]}\n{analysis["follow_up_question"]}\nThemes: {analysis["themes"]}\nEmotions: {analysis["emotions"]}'
+    new_prompts_data = generate_prompts(text, session_history)
     new_prompts = [
         {
             "id": p["id"],

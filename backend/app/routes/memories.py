@@ -55,7 +55,7 @@ async def delete_memories(
     
     await db.commit()
     
-    # Delete from Chroma (stubbed)
+    # Delete from Chroma 
     chroma_service.delete_session_entries(session_id)
     
     return {

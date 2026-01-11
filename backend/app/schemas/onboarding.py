@@ -13,3 +13,7 @@ class OnboardingResponse(BaseModel):
     active_threads: List[Thread]
     initial_tree: Tree
 
+class ThreadsAndStarterPrompts(BaseModel):
+    starter_prompts: List[Prompt]
+    active_threads: List[Thread]
+

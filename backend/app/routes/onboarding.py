@@ -37,9 +37,9 @@ async def submit_onboarding(
     # Convert prompts to response format
     starter_prompts = [
         {
-            "id": p["id"],
-            "text": p["text"],
-            "category": p.get("category"),
+            "id": p.id,
+            "text": p.text,
+            "category": p.category,
         }
         for p in analysis["starter_prompts"]
     ]

@@ -118,9 +118,10 @@ async def get_weekly_insights(
     # Generate weekly insights (mock for now)
     insights = generate_weekly_insights(session_id, entry_data)
     
-    return WeeklyInsightsResponse(
-        patterns_reflection=insights["patterns_reflection"],
-        themes=insights["themes"],
-        emotions_summary=insights["emotions_summary"],
-    )
+    return insights
+    # return WeeklyInsightsResponse(
+    #     patterns_reflection=insights["patterns_reflection"],
+    #     themes=insights["themes"],
+    #     emotions_summary=insights["emotions_summary"],
+    # )
 

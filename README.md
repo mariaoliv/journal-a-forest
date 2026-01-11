@@ -193,7 +193,7 @@ Currently, the following features use deterministic mock data to enable full UI 
 ### TODO: Implementing Real Features
 
 #### LLM Integration
-1. Set up OpenAI API key in environment variables
+1. Set up Mistral API key in environment variables
 2. Implement `analyze_entry()` in `app/services/llm_service.py`
 3. Implement `generate_prompts()` for personalized prompts
 4. Implement `analyze_brain_dump()` for onboarding insights

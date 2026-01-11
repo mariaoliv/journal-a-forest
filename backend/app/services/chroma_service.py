@@ -1,30 +1,23 @@
 """
 Chroma Vector Database Service for semantic search and retrieval.
-
-TODO: Implement full Chroma integration for:
-1. Storing entry embeddings
-2. Semantic search for similar entries
-3. Retrieval-augmented generation (RAG) for patterns
-4. Finding relevant historical context
-
-For now, provides a stubbed interface.
 """
 
 import os
+from dotenv import load_dotenv
 from pathlib import Path
 from typing import List, Dict, Optional
+import chromadb
+from chromadb.config import Settings
+from mistralai import Mistral
 
-# TODO: Uncomment and configure when implementing
-# import chromadb
-# from chromadb.config import Settings
-
+load_dotenv()
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 CHROMA_DB_PATH = Path("chroma_db")
 
 class ChromaService:
     """
     Service for managing Chroma vector database.
     
-    TODO: Implement:
     1. Initialize persistent Chroma client
     2. Create collection for journal entries
     3. Generate embeddings (using OpenAI or sentence-transformers)
@@ -35,94 +28,91 @@ class ChromaService:
     
     def __init__(self):
         self.initialized = False
-        # TODO: Initialize Chroma client
-        # self.client = chromadb.PersistentClient(
-        #     path=str(CHROMA_DB_PATH),
-        #     settings=Settings(anonymized_telemetry=False)
-        # )
-        # self.collection = self.client.get_or_create_collection(
-        #     name="journal_entries",
-        #     metadata={"hnsw:space": "cosine"}
-        # )
-        # self.initialized = True
+        self.client = chromadb.PersistentClient(
+            path=str(CHROMA_DB_PATH),
+            settings=Settings(anonymized_telemetry=False)
+        )
+        self.collection = self.client.get_or_create_collection(
+            name="journal_entries",
+            metadata={"hnsw:space": "cosine"}
+        )
+        self.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+        self.initialized = True
     
     def store_entry(self, entry_id: int, session_id: str, text: str, metadata: Dict = None):
         """
         Store entry text as embedding in Chroma.
         
-        TODO: Implement:
-        1. Generate embedding using OpenAI or sentence-transformers
-        2. Store with ID, text, and metadata
-        3. Include session_id, entry_id, created_at, themes, emotions
+        The texts will be short summaries of journal entries, so chunking is not needed.
         """
         if not self.initialized:
             return
-        
-        # TODO: Implement storage
-        # embedding = self._generate_embedding(text)
-        # self.collection.add(
-        #     ids=[f"{session_id}_{entry_id}"],
-        #     embeddings=[embedding],
-        #     documents=[text],
-        #     metadatas=[metadata or {}]
-        # )
-        pass
+
+        try:
+            metadata["session_id"] = session_id
+
+            embedding = self._generate_embedding(text)
+            self.collection.add(
+                ids=[f"{session_id}_{entry_id}"],
+                embeddings=[embedding],
+                documents=text,
+                metadata=metadata
+            )
+        except Exception as e:
+            print(f"Could not store entry in ChromaDB: {e}")
+
     
-    def search_similar(self, query: str, session_id: str, limit: int = 5) -> List[Dict]:
+    def search_similar(self, query: str, session_id: str, exclude_entry_ids: List[str] = [], limit: int = 5) -> List[Dict]:
         """
         Search for similar entries using semantic similarity.
-        
-        TODO: Implement:
-        1. Generate query embedding
-        2. Query collection filtered by session_id
-        3. Return similar entries with similarity scores
         """
         if not self.initialized:
             return []
         
-        # TODO: Implement search
-        # query_embedding = self._generate_embedding(query)
-        # results = self.collection.query(
-        #     query_embeddings=[query_embedding],
-        #     n_results=limit,
-        #     where={"session_id": session_id}
-        # )
-        # return results
-        return []
+        try:
+            query_embedding = self._generate_embedding(query)
+            if not exclude_entry_ids:
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=limit,
+                    where={"session_id" : session_id}
+                )
+            else:
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=limit,
+                    where={"session_id" : session_id, "entry_id": {"$nin": exclude_entry_ids}}
+                )
+            return results["documents"][0] if results["documents"] else []
+        except Exception as e:
+            print(f"Failed to perform similarity search: {e}")
     
     def delete_session_entries(self, session_id: str):
         """
         Delete all entries for a session from Chroma.
-        
-        TODO: Implement:
-        1. Query all entries with session_id
-        2. Delete by IDs
         """
         if not self.initialized:
             return
         
-        # TODO: Implement deletion
-        # results = self.collection.get(where={"session_id": session_id})
-        # if results and results["ids"]:
-        #     self.collection.delete(ids=results["ids"])
-        pass
+        try:
+            results = self.collection.get(where={"session_id" : session_id})
+            if results and results["ids"]:
+                self.collection.delete(ids=results["ids"])
+        except Exception as e:
+            print(f"Failed to delete session entries: {e}")
     
     def _generate_embedding(self, text: str) -> List[float]:
         """
         Generate embedding vector for text.
-        
-        TODO: Implement using:
-        - OpenAI text-embedding-ada-002 or text-embedding-3-small
-        - Or sentence-transformers locally (e.g., all-MiniLM-L6-v2)
         """
-        # TODO: Implement embedding generation
-        # import openai
-        # response = openai.Embedding.create(
-        #     input=text,
-        #     model="text-embedding-ada-002"
-        # )
-        # return response["data"][0]["embedding"]
-        return []
+        try:
+            response = self.mistral_client.embeddings.create(
+                model="mistral_embed",
+                inputs=text
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            print(f"Failed to generate embedding: {e}")
 
 # Global instance
 chroma_service = ChromaService()

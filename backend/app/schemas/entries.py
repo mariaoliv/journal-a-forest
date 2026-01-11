@@ -19,3 +19,11 @@ class EntryResponse(BaseModel):
     tree: Tree
     streak_updated: int
 
+class EntryAnalysis(BaseModel):
+    memory_summary: str
+    patterns_reflection: str
+    follow_up_question: str
+    themes: List[str]
+    emotions: List[str]
+    unresolved: List[str]
+
