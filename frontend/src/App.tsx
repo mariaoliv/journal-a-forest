@@ -5,6 +5,7 @@ import Main from './pages/Main'
 import Journaling from './pages/Journaling'
 import Forest from './pages/Forest'
 import Settings from './pages/Settings'
+import Insights from './pages/Insights'
 import { SessionProvider } from './contexts/SessionContext'
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
           <Route path="/journaling/:promptId?" element={<Journaling />} />
           <Route path="/forest" element={<Forest />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/insights" element={<Insights />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

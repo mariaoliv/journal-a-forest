@@ -11,6 +11,7 @@ export default function Main() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [patternsReflection, setPatternsReflection] = useState<string | null>(null)
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(true)
+  const [numEntries, setNumEntries] = useState(0)
 
   useEffect(() => {
     if (!isLoading && sessionId) {
@@ -40,6 +41,8 @@ export default function Main() {
     
     try {
       setIsLoadingPrompts(true)
+      const nEntries = await apiClient.getNumEntries(sessionId)
+      setNumEntries(nEntries.num_entries)
       const response = await apiClient.getTodayPrompts(sessionId)
       setPrompts(response.prompts)
       setThreads(response.active_threads)
@@ -157,6 +160,13 @@ export default function Main() {
             className="px-6 py-2 text-forest-700 hover:text-forest-900 font-medium"
           >
             Settings
+          </button>
+          <button
+            onClick={() => navigate('/insights')}
+            className="px-6 py-2 text-forest-700 hover:text-forest-900 font-medium"
+            disabled={numEntries === 0 || numEntries % 7 !== 0}
+          >
+            Generate Weekly Insights
           </button>
         </div>
       </div>

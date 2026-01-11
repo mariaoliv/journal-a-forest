@@ -71,6 +71,10 @@ export interface EntryResponse {
   streak_updated: number
 }
 
+export interface NumEntries {
+  num_entries: number
+}
+
 export interface GardenResponse {
   streak_days: number
   trees: Tree[]
@@ -113,6 +117,13 @@ export const apiClient = {
 
   async createEntry(data: EntryRequest): Promise<EntryResponse> {
     const response = await client.post<EntryResponse>('/api/entries', data)
+    return response.data
+  },
+
+  async getNumEntries(sessionId: string): Promise<NumEntries> {
+    const response = await client.get<NumEntries>('/api/num_entries', {
+      params : { session_id : sessionId },
+    })
     return response.data
   },
 

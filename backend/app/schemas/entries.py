@@ -27,3 +27,6 @@ class EntryAnalysis(BaseModel):
     emotions: List[str]
     unresolved: List[str]
 
+class NumEntries(BaseModel):
+    num_entries: int
+

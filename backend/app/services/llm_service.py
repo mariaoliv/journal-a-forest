@@ -586,7 +586,7 @@ Avoid:
     """
 
     chat_response = mistral_client.chat.parse(
-        model_name=MISTRAL_MODEL_NAME,
+        model=MISTRAL_MODEL_NAME,
         messages = [
             {
                 "role": "system",

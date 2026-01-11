@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
-from app.schemas.entries import EntryRequest, EntryResponse
+from fastapi import APIRouter, HTTPException, Depends, Query
+from app.schemas.entries import EntryRequest, EntryResponse, NumEntries
 from app.services.llm_service import analyze_entry, generate_prompts
 from app.services.chroma_service import ChromaService
 from app.services.tree_service import generate_tree
@@ -11,6 +11,32 @@ from datetime import datetime, date
 
 router = APIRouter()
 chroma_db = ChromaService()
+
+@router.get("/num_entries")
+async def get_num_entries(
+    session_id: str = Query(..., description="Session ID"),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Get the number of journal entries in the database"""
+    
+     # Verify session exists
+    async with db.execute(
+        "SELECT id FROM sessions WHERE id = ?", (session_id,)
+    ) as cursor:
+        session = await cursor.fetchone()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+    async with db.execute(
+        """
+        SELECT COUNT(*) from journal_entries
+        WHERE session_id = ?
+        """,
+        (session_id,)
+    ) as cursor:
+        num_entries = (await cursor.fetchone())[0]
+
+    return NumEntries(num_entries=num_entries)
 
 @router.post("/entries", response_model=EntryResponse)
 async def create_entry(

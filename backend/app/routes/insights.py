@@ -29,6 +29,8 @@ async def get_trends(
         FROM entry_analysis ea
         JOIN journal_entries je ON ea.entry_id = je.id
         WHERE je.session_id = ?
+        ORDER BY je.created_at DESC
+        LIMIT 7
         """,
         (session_id,)
     ) as cursor:
@@ -94,8 +96,8 @@ async def get_weekly_insights(
         FROM entry_analysis ea
         JOIN journal_entries je ON ea.entry_id = je.id
         WHERE je.session_id = ?
-        AND je.created_at >= datetime('now', '-7 days')
         ORDER BY je.created_at DESC
+        LIMIT 7
         """,
         (session_id,)
     ) as cursor:
