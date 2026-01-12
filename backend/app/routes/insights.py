@@ -107,6 +107,7 @@ async def get_weekly_insights(
     entry_data = []
     for row in entries:
         try:
+            print("===> Row:", row)
             themes = json.loads(row[1]) if row[1] else []
             emotions = json.loads(row[2]) if row[2] else []
             entry_data.append({
@@ -114,12 +115,15 @@ async def get_weekly_insights(
                 "themes": themes,
                 "emotions": emotions,
             })
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, json.decoder.JSONDecodeError, TypeError) as e:
+            print(f"Error occured: {e}")
             continue
-    
+
     # Generate weekly insights (mock for now)
-    insights = generate_weekly_insights(session_id, entry_data)
+    insights = generate_weekly_insights(session_id, json.loads(json.dumps(entry_data)))
     
+    print("==> Insights:", insights)
+
     return insights
     # return WeeklyInsightsResponse(
     #     patterns_reflection=insights["patterns_reflection"],

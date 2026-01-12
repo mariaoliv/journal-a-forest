@@ -3,6 +3,7 @@ LLM Service for analyzing journal entries.
 """
 
 import json
+import re
 import hashlib
 from typing import Dict, List, Any
 from dotenv import load_dotenv
@@ -474,6 +475,35 @@ The output should feel **welcoming, thoughtful, and gently personalized**.
         "initial_tree": initial_tree,
     }
 
+def extract_json_from_llm(text: str) -> dict:
+    """
+    Extract a JSON object from an LLM response string.
+    Handles markdown fences, extra text, and whitespace.
+    """
+
+    if not text:
+        raise ValueError("Empty LLM response")
+
+    # 1. Strip markdown code fences if present
+    # ```json ... ``` or ``` ... ```
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text.strip())
+
+    # 2. Find the first { and last }
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No valid JSON object found in LLM response")
+
+    json_str = text[start : end + 1]
+
+    # 3. Parse JSON
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON: {e}\n\nRaw JSON:\n{json_str}")
+
 def generate_weekly_insights(session_id: str, entries: List[Dict]) -> WeeklyInsightsResponse:
     """
     Generate weekly reflection and pattern insights.
@@ -507,7 +537,7 @@ Your role is to **summarize themes and emotional texture**, and to reflect **pat
 - Use **patterns-not-advice framing** at all times.
 - Do not tell the user what they *should* do.
 - Do not diagnose or use clinical language.
-- Do not overclaim certainty. Use gentle language like “it seems,” “a theme that shows up,” “you often return to…”
+- Do not overclaim certainty. Use gentle language like "it seems," "a theme that shows up," "you often return to…"
 - Avoid clichés and generic self-help phrases.
 - Do not quote the user verbatim.
 - Be concise and readable.
@@ -566,26 +596,41 @@ If the input list is empty, return:
 - an empty `themes` list,
 - an empty `emotions_summary` object.
 
+## Output Contract (STRICT)
+
+- Return ONLY a valid JSON object.
+- Do NOT include any extra text before or after the JSON.
+- Do NOT wrap the JSON in markdown/code fences (no ```).
+- Use double quotes for all keys and string values.
+- JSON must start with { and end with }.
+- The object must contain exactly these top-level keys:
+- "patterns_reflection" (string)
+- "themes" (array of strings)
+- "emotions_summary" (object mapping string → integer)
+
 ---
 
 ## Style Notes (good tone)
 
 - Calm, grounded, human
-- “Here's what showed up” energy, not “here's what to do”
+- "Here's what showed up" energy, not "here's what to do"
 - Examples of acceptable phrasing:
-  - “A theme that came up repeatedly this week was…”
-  - “There's a sense of…”
-  - “It seems like you were moving between…”
-  - “You kept returning to questions around…”
+  - "A theme that came up repeatedly this week was…"
+  - "There's a sense of…"
+  - "It seems like you were moving between…"
+  - "You kept returning to questions around…"
 
 Avoid:
-- “You should…”
-- “Try…”
-- “It would help to…”
-- Therapy-like language (“processing trauma,” “attachment,” “CBT,” etc.)
+- "You should…"
+- "Try…"
+- "It would help to…"
+- Therapy-like language ("processing trauma," "attachment," "CBT," etc.)
     """
 
-    chat_response = mistral_client.chat.parse(
+    json_entries = json.dumps(entries)
+    print("==> ENTRIES", json_entries)
+
+    chat_response = mistral_client.chat.complete(
         model=MISTRAL_MODEL_NAME,
         messages = [
             {
@@ -594,14 +639,21 @@ Avoid:
             },
             {
                 "role": "user",
-                "content": f"Entries:\n{entries}"
+                "content": json_entries
             }
         ],
-        response_format=WeeklyInsightsResponse
+        #response_format=WeeklyInsightsResponse
     )
 
-    response = chat_response.choices[0].message.parsed
-    return response
+    print("**==> Chat response:", chat_response)
+
+    raw_content = chat_response.choices[0].message.content
+
+    parsed = extract_json_from_llm(raw_content)
+
+    weekly_insights = WeeklyInsightsResponse(**parsed)
+
+    return weekly_insights
 
     
 
